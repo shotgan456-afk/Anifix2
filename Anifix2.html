@@ -1,0 +1,226 @@
+<html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AniStream</title>
+
+<!-- ✅ PWA STEP 2 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f97316">
+
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+<style>
+@keyframes fadeZoom {
+  from { opacity:0; transform:scale(0.9); }
+  to { opacity:1; transform:scale(1); }
+}
+.animate-logo { animation: fadeZoom 1.2s ease-out; }
+</style>
+</head>
+
+<body class="bg-black text-white">
+
+<!-- SPLASH -->
+<div id="splash" class="fixed inset-0 z-50 flex items-center justify-center bg-black">
+  <div class="text-center animate-logo">
+    <h1 class="text-4xl font-bold text-orange-500">AniStream</h1>
+    <p class="mt-2 text-sm text-gray-400">Watch Anime Anytime</p>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black">
+  <div class="bg-gray-900 p-6 rounded-lg w-80">
+    <h2 class="text-xl font-semibold mb-4 text-center">Login</h2>
+    <input class="w-full mb-3 p-2 rounded bg-gray-800" placeholder="Username">
+    <input type="password" class="w-full mb-4 p-2 rounded bg-gray-800" placeholder="Password">
+    <button onclick="login()" class="w-full py-2 bg-orange-500 text-black font-semibold rounded">
+      Sign In
+    </button>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<header id="topBar" class="hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-black border-b border-gray-800">
+  <div class="flex items-center gap-3">
+    <span class="font-bold text-orange-500">AniStream</span>
+    <input oninput="searchAnime(this.value)"
+      placeholder="Search anime"
+      class="px-3 py-1 text-sm rounded bg-gray-800 focus:outline-none w-40">
+  </div>
+
+  <div class="relative">
+    <button onclick="toggleProfile()" class="h-9 w-9 rounded-full bg-orange-500 text-black font-bold">A</button>
+    <div id="profileMenu" class="hidden absolute right-0 mt-2 w-40 bg-gray-900 border border-gray-800 rounded">
+      <div class="px-4 py-2 hover:bg-gray-800">Profile</div>
+      <div class="px-4 py-2 hover:bg-gray-800">Settings</div>
+      <div onclick="logout()" class="px-4 py-2 hover:bg-gray-800 cursor-pointer">Logout</div>
+    </div>
+  </div>
+</header>
+
+<!-- APP -->
+<div id="app" class="hidden pt-16 pb-20 min-h-screen">
+<main class="p-4 space-y-6">
+
+<section id="page-home" class="page">
+  <h2 class="text-lg font-semibold mb-3">Top Anime</h2>
+  <div id="animeList" class="grid grid-cols-2 gap-4"></div>
+</section>
+
+<section id="page-list" class="page hidden">
+  <h2 class="text-lg font-semibold mb-3">My List</h2>
+</section>
+
+<section id="page-detail" class="page hidden">
+  <button onclick="showPage('page-home')" class="text-orange-500 text-sm mb-2">← Back</button>
+  <img id="detailImg" class="w-full h-52 object-cover rounded">
+  <h2 id="detailTitle" class="mt-3 text-lg font-semibold"></h2>
+  <p id="detailDesc" class="mt-2 text-sm text-gray-400"></p>
+
+  <button onclick="addToWatchlist()"
+    class="mt-4 w-full py-2 bg-orange-500 text-black rounded font-semibold">
+    + Add to Watchlist
+  </button>
+
+  <h3 class="mt-6 font-semibold">Episodes</h3>
+  <div id="episodeList" class="space-y-2 mt-2"></div>
+</section>
+
+<section id="page-player" class="page hidden">
+  <button onclick="showPage('page-detail')" class="text-orange-500 text-sm mb-2">← Back</button>
+  <video controls class="w-full rounded bg-black"
+    src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"></video>
+  <p id="playerTitle" class="mt-2 text-sm text-gray-400"></p>
+</section>
+
+</main>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav id="bottomNav" class="hidden fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800">
+  <div class="flex justify-around py-2 text-xs">
+    <button onclick="showPage('page-home')" class="text-orange-500">Home</button>
+    <button onclick="loadWatchlist(); showPage('page-list')" class="text-gray-400">My List</button>
+    <button onclick="showPage('page-home')" class="text-gray-400">Browse</button>
+    <button onclick="showPage('page-home')" class="text-gray-400">Account</button>
+  </div>
+</nav>
+
+<!-- SCRIPT -->
+<script>
+let currentAnime = {};
+
+window.onload = () => {
+  setTimeout(() => {
+    splash.style.display = "none";
+    loginScreen.classList.remove("hidden");
+  }, 1200);
+};
+
+function login(){
+  loginScreen.classList.add("hidden");
+  app.classList.remove("hidden");
+  topBar.classList.remove("hidden");
+  bottomNav.classList.remove("hidden");
+  loadAnime();
+}
+
+function logout(){ location.reload(); }
+
+function toggleProfile(){
+  profileMenu.classList.toggle("hidden");
+}
+
+function showPage(id){
+  document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
+
+async function loadAnime(){
+  try{
+    const res = await fetch("https://api.jikan.moe/v4/top/anime");
+    const data = await res.json();
+    animeList.innerHTML = "";
+    data.data.slice(0,10).forEach(renderCard);
+  }catch{
+    animeList.innerHTML = "<p class='text-gray-400'>Offline mode</p>";
+  }
+}
+
+async function searchAnime(q){
+  if(q.length < 3){ loadAnime(); return; }
+  try{
+    const res = await fetch(`https://api.jikan.moe/v4/anime?q=${q}&limit=10`);
+    const data = await res.json();
+    animeList.innerHTML = "";
+    data.data.forEach(renderCard);
+  }catch{
+    animeList.innerHTML = "<p class='text-gray-400'>Search unavailable</p>";
+  }
+}
+
+function renderCard(a){
+  animeList.innerHTML += `
+  <div onclick="openDetail(${encodeURIComponent(JSON.stringify(a))})"
+    class="bg-gray-900 rounded-lg overflow-hidden cursor-pointer">
+    <img src="${a.images.jpg.image_url}" class="h-40 w-full object-cover">
+    <div class="p-2 text-sm">${a.title}</div>
+  </div>`;
+}
+
+function openDetail(raw){
+  const a = JSON.parse(decodeURIComponent(raw));
+  currentAnime = { title:a.title, img:a.images.jpg.image_url, desc:a.synopsis };
+  detailTitle.innerText = currentAnime.title;
+  detailImg.src = currentAnime.img;
+  detailDesc.innerText = currentAnime.desc || "No description available";
+  episodeList.innerHTML = "";
+  for(let i=1;i<=5;i++){
+    episodeList.innerHTML += `
+      <div onclick="playEpisode(${i})"
+        class="bg-gray-800 px-3 py-2 rounded cursor-pointer">
+        Episode ${i}
+      </div>`;
+  }
+  showPage("page-detail");
+}
+
+function playEpisode(ep){
+  playerTitle.innerText = `${currentAnime.title} - Episode ${ep}`;
+  showPage("page-player");
+}
+
+function addToWatchlist(){
+  let list = JSON.parse(localStorage.getItem("watchlist")) || [];
+  if(!list.find(a => a.title === currentAnime.title)){
+    list.push(currentAnime);
+    localStorage.setItem("watchlist", JSON.stringify(list));
+    alert("Added to Watchlist");
+  } else {
+    alert("Already in Watchlist");
+  }
+}
+
+function loadWatchlist(){
+  let list = JSON.parse(localStorage.getItem("watchlist")) || [];
+  page-list.innerHTML = "<h2 class='text-lg font-semibold mb-3'>My List</h2>";
+  list.forEach(a=>{
+    page-list.innerHTML += `<div class="bg-gray-900 p-2 rounded mb-2">${a.title}</div>`;
+  });
+}
+</script>
+
+<!-- ✅ PWA STEP 4 -->
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js");
+  });
+}
+</script>
+
+</body>
+</html>
