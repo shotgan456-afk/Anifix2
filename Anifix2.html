@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AniStream</title>
+<title>Anifix</title>
 
-<!-- ✅ PWA STEP 2 -->
+<!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#f97316">
 
@@ -25,7 +25,7 @@
 <!-- SPLASH -->
 <div id="splash" class="fixed inset-0 z-50 flex items-center justify-center bg-black">
   <div class="text-center animate-logo">
-    <h1 class="text-4xl font-bold text-orange-500">AniStream</h1>
+    <h1 class="text-4xl font-bold text-orange-500">Anifix</h1>
     <p class="mt-2 text-sm text-gray-400">Watch Anime Anytime</p>
   </div>
 </div>
@@ -45,7 +45,7 @@
 <!-- TOP BAR -->
 <header id="topBar" class="hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-black border-b border-gray-800">
   <div class="flex items-center gap-3">
-    <span class="font-bold text-orange-500">AniStream</span>
+    <span class="font-bold text-orange-500">Anifix</span>
     <input oninput="searchAnime(this.value)"
       placeholder="Search anime"
       class="px-3 py-1 text-sm rounded bg-gray-800 focus:outline-none w-40">
@@ -104,14 +104,15 @@
   <div class="flex justify-around py-2 text-xs">
     <button onclick="showPage('page-home')" class="text-orange-500">Home</button>
     <button onclick="loadWatchlist(); showPage('page-list')" class="text-gray-400">My List</button>
-    <button onclick="showPage('page-home')" class="text-gray-400">Browse</button>
-    <button onclick="showPage('page-home')" class="text-gray-400">Account</button>
+    <button class="text-gray-400">Browse</button>
+    <button class="text-gray-400">Account</button>
   </div>
 </nav>
 
 <!-- SCRIPT -->
 <script>
 let currentAnime = {};
+let searchTimer;
 
 window.onload = () => {
   setTimeout(() => {
@@ -134,6 +135,12 @@ function toggleProfile(){
   profileMenu.classList.toggle("hidden");
 }
 
+document.addEventListener("click", (e)=>{
+  if(!e.target.closest("#profileMenu") && !e.target.closest("button")){
+    profileMenu.classList.add("hidden");
+  }
+});
+
 function showPage(id){
   document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
   document.getElementById(id).classList.remove("hidden");
@@ -150,7 +157,12 @@ async function loadAnime(){
   }
 }
 
-async function searchAnime(q){
+function searchAnime(q){
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(()=>searchAnimeNow(q), 400);
+}
+
+async function searchAnimeNow(q){
   if(q.length < 3){ loadAnime(); return; }
   try{
     const res = await fetch(`https://api.jikan.moe/v4/anime?q=${q}&limit=10`);
@@ -164,7 +176,7 @@ async function searchAnime(q){
 
 function renderCard(a){
   animeList.innerHTML += `
-  <div onclick="openDetail(${encodeURIComponent(JSON.stringify(a))})"
+  <div onclick="openDetail('${encodeURIComponent(JSON.stringify(a))}')"
     class="bg-gray-900 rounded-lg overflow-hidden cursor-pointer">
     <img src="${a.images.jpg.image_url}" class="h-40 w-full object-cover">
     <div class="p-2 text-sm">${a.title}</div>
@@ -206,14 +218,25 @@ function addToWatchlist(){
 
 function loadWatchlist(){
   let list = JSON.parse(localStorage.getItem("watchlist")) || [];
-  page-list.innerHTML = "<h2 class='text-lg font-semibold mb-3'>My List</h2>";
+  const pageList = document.getElementById("page-list");
+
+  pageList.innerHTML = "<h2 class='text-lg font-semibold mb-3'>My List</h2>";
+
+  if(list.length === 0){
+    pageList.innerHTML += "<p class='text-gray-400'>No anime added yet</p>";
+    return;
+  }
+
   list.forEach(a=>{
-    page-list.innerHTML += `<div class="bg-gray-900 p-2 rounded mb-2">${a.title}</div>`;
+    pageList.innerHTML += `
+      <div class="bg-gray-900 p-2 rounded mb-2">
+        ${a.title}
+      </div>`;
   });
 }
 </script>
 
-<!-- ✅ PWA STEP 4 -->
+<!-- SERVICE WORKER -->
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
